@@ -1,141 +1,119 @@
 const pool = require("../config/db");
+const bcrypt = require("bcryptjs");
 
-// ======================================================================================
-// CREATE USER
-// ======================================================================================
+// ==================================================
+// CREATE USER (HASH PASSWORD)
+// ==================================================
 const createUser = async (req, res) => {
   try {
-    const { first_name, last_name, email, role, profile } = req.body;
+    const { full_name, email, phone, password, role } = req.body;
 
-    if (!first_name || !last_name || !email || !role) {
-      return res.status(400).json({ message: "All fields are required." });
+    if (!full_name || !email || !password || !role) {
+      return res.status(400).json({ message: "full_name, email, password, role required." });
     }
 
-    const sql = `
-      INSERT INTO users (first_name, last_name, email, role, profile)
-      VALUES (?, ?, ?, ?, ?)
-    `;
-    await pool.query(sql, [
-      first_name,
-      last_name,
-      email,
-      role,
-      profile || null,
-    ]);
+    const check = await pool.query("SELECT id FROM users WHERE email = ?", [email]);
+    if (check[0].length > 0) {
+      return res.status(409).json({ message: "Email already exists." });
+    }
 
-    return res.status(201).json({ message: "User created successfully." });
-  } catch (error) {
-    return res.status(500).json({ message: "Server error", error });
-  }
-};
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-// ======================================================================================
-// GET ALL USERS
-// ======================================================================================
-const getAllUsers = async (req, res) => {
-  try {
-    const [rows] = await pool.query("SELECT * FROM users ORDER BY user_id DESC");
-    return res.json(rows);
-  } catch (error) {
-    return res.status(500).json({ message: "Server error", error });
-  }
-};
-
-// ======================================================================================
-// GET USER BY ID
-// ======================================================================================
-const getUserById = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const [rows] = await pool.query(
-      "SELECT * FROM users WHERE user_id = ?",
-      [id]
+    await pool.query(
+      `INSERT INTO users (full_name, email, phone, password, role)
+       VALUES (?, ?, ?, ?, ?)`,
+      [full_name, email, phone || null, hashedPassword, role]
     );
 
-    if (rows.length === 0)
-      return res.status(404).json({ message: "User not found" });
-
-    return res.json(rows[0]);
-  } catch (error) {
-    return res.status(500).json({ message: "Server error", error });
+    return res.status(201).json({ message: "User created successfully." });
+  } catch (err) {
+    return res.status(500).json({ message: "Server error", error: err });
   }
 };
 
-// ======================================================================================
-// UPDATE USER
-// ======================================================================================
+// ==================================================
+// GET ALL USERS
+// ==================================================
+const getAllUsers = async (_req, res) => {
+  try {
+    const [rows] = await pool.query("SELECT * FROM users ORDER BY id DESC");
+    return res.json(rows);
+  } catch (err) {
+    return res.status(500).json({ message: "Server error", error: err });
+  }
+};
+
+// ==================================================
+// UPDATE USER BY EMAIL (HASH PASSWORD IF UPDATED)
+// ==================================================
 const updateUserByPayload = async (req, res) => {
   try {
-    const { user_id, ...rest } = req.body;
+    const { email, password, ...otherFields } = req.body;
 
-    if (!user_id)
-      return res.status(400).json({ message: "user_id is required" });
+    if (!email) return res.status(400).json({ message: "email is required to update user" });
 
-    if (Object.keys(rest).length === 0)
-      return res.status(400).json({ message: "No fields provided to update" });
+    const fields = { ...otherFields };
 
-    // dynamic SQL
-    const fields = [];
-    const values = [];
-
-    for (let key in rest) {
-      fields.push(`${key} = ?`);
-      values.push(rest[key]);
+    // If password is included → hash it
+    if (password) {
+      fields.password = await bcrypt.hash(password, 10);
     }
 
-    values.push(user_id);
+    if (Object.keys(fields).length === 0)
+      return res.status(400).json({ message: "No fields provided to update" });
 
-    const sql = `
-      UPDATE users
-      SET ${fields.join(", ")}
-      WHERE user_id = ?
-    `;
+    const updates = [];
+    const values = [];
 
-    const [result] = await pool.query(sql, values);
+    for (let key in fields) {
+      updates.push(`${key} = ?`);
+      values.push(fields[key]);
+    }
+
+    values.push(email);
+
+    const [result] = await pool.query(
+      `UPDATE users SET ${updates.join(", ")} WHERE email = ?`,
+      values
+    );
 
     if (result.affectedRows === 0)
       return res.status(404).json({ message: "User not found" });
 
     return res.json({ message: "User updated successfully" });
-  } catch (error) {
-    return res.status(500).json({ message: "Server error", error });
+  } catch (err) {
+    return res.status(500).json({ message: "Server error", error: err });
   }
 };
 
-// ======================================================================================
-// DELETE USER
-// ======================================================================================
+// ==================================================
+// DELETE USER BY EMAIL
+// ==================================================
 const deleteUserByPayload = async (req, res) => {
   try {
-    const { user_id } = req.body;
+    const { email } = req.body;
 
-    if (!user_id)
-      return res.status(400).json({ message: "user_id is required" });
+    if (!email) return res.status(400).json({ message: "email required" });
 
-    const [result] = await pool.query(
-      "DELETE FROM users WHERE user_id = ?",
-      [user_id]
-    );
+    const [result] = await pool.query("DELETE FROM users WHERE email = ?", [email]);
 
     if (result.affectedRows === 0)
       return res.status(404).json({ message: "User not found" });
 
     return res.json({ message: "User deleted successfully" });
-  } catch (error) {
-    return res.status(500).json({ message: "Server error", error });
+  } catch (err) {
+    return res.status(500).json({ message: "Server error", error: err });
   }
+
 };
 
-// ======================================================================================
-// USER STATS (ADMIN, USER, PARTNER, CLEANER)
-// ======================================================================================
 const getUserStats = async (req, res) => {
   try {
     const [rows] = await pool.query(`
-      SELECT
-        SUM(role = 'admin')   AS admin_count,
-        SUM(role = 'user')    AS user_count,
+      SELECT 
+        COUNT(*) AS total_users,
+        SUM(role = 'admin') AS admin_count,
+        SUM(role = 'user') AS user_count,
         SUM(role = 'partner') AS partner_count,
         SUM(role = 'cleaner') AS cleaner_count
       FROM users
@@ -143,67 +121,18 @@ const getUserStats = async (req, res) => {
 
     return res.json(rows[0]);
   } catch (error) {
+    console.error("Stats error:", error);
     return res.status(500).json({ message: "Server error", error });
   }
 };
 
-// ======================================================================================
-// SEARCH + FILTER + PAGINATION
-// ======================================================================================
-const searchUsers = async (req, res) => {
-  try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = 10;
-    const offset = (page - 1) * limit;
 
-    const q = req.query.q || "";
-    const role = req.query.role || "";
 
-    let where = "WHERE 1=1 ";
-    const values = [];
-
-    if (q) {
-      where += "AND (first_name LIKE ? OR last_name LIKE ? OR email LIKE ?) ";
-      values.push(`%${q}%`, `%${q}%`, `%${q}%`);
-    }
-
-    if (role) {
-      where += "AND role = ? ";
-      values.push(role);
-    }
-
-    const [countRows] = await pool.query(
-      `SELECT COUNT(*) AS total FROM users ${where}`,
-      values
-    );
-
-    const [rows] = await pool.query(
-      `
-      SELECT * FROM users
-      ${where}
-      ORDER BY user_id DESC
-      LIMIT ? OFFSET ?
-    `,
-      [...values, limit, offset]
-    );
-
-    return res.json({
-      page,
-      total: countRows[0].total,
-      users: rows,
-    });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ message: "Server error", error });
-  }
-};
 
 module.exports = {
   createUser,
   getAllUsers,
-  getUserById,
   updateUserByPayload,
   deleteUserByPayload,
   getUserStats,
-  searchUsers
 };

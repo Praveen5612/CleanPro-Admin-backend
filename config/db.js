@@ -11,9 +11,8 @@ const pool = mysql.createPool({
   database: process.env.DB_NAME,
   port: process.env.DB_PORT || 3306,
   connectionLimit: 10,
-  ssl: {
-  ca: fs.readFileSync("/etc/secrets/ca.pem")
-}
+
+
 });
 
 module.exports = pool;

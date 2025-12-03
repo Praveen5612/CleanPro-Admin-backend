@@ -4,23 +4,47 @@ const dotenv = require("dotenv");
 dotenv.config();
 
 const pool = require("./config/db");
-const auth = require("./middleware/authMiddleware"); // IMPORTANT
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Public route (no JWT)
-app.use("/api/auth", require("./routes/authRoutes"));
+// Serve images
+app.use("/uploads", express.static("uploads"));
 
-// Protected routes (JWT required)
-app.use("/api/users", auth, require("./routes/userRoutes"));
+// ========================= //
+//          ROUTES           //
+// ========================= //
 
+// Auth (public)
+const authRoutes = require("./routes/authRoutes");
+app.use("/api/auth", authRoutes);
+
+// Protected Routes
+const auth = require("./middleware/authMiddleware"); // JWT Middleware
+
+const cleanerRoutes = require("./routes/cleanerRoutes");
+app.use("/api/cleaners", auth, cleanerRoutes);
+
+const customerRoutes = require("./routes/customerRoutes");
+app.use("/api/customers", auth, customerRoutes);
+
+const partnerRoutes = require("./routes/partnerRoutes");
+app.use("/api/partners", auth, partnerRoutes);
+
+const dashboardRoutes = require("./routes/dashboardRoutes");
+app.use("/api/dashboard", auth, dashboardRoutes);
+
+const userRoutes = require("./routes/userRoutes");
+app.use("/api/users", auth, userRoutes);
+
+
+// Default Check Route
 app.get("/", (req, res) => {
   res.send("Backend running...");
 });
 
-// MySQL Test
+// MySQL Connection Test
 (async () => {
   try {
     const conn = await pool.getConnection();
@@ -31,8 +55,8 @@ app.get("/", (req, res) => {
   }
 })();
 
-
-console.log("JWT SECRET BEING USED:", process.env.JWT_SECRET);
+// Show secret for debugging
+// console.log("JWT SECRET:", process.env.JWT_SECRET);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running at port ${PORT}`));
