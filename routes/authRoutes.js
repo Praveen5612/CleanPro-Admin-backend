@@ -5,7 +5,7 @@ const uploadProfile = require("../middleware/uploadProfile");
 const { signupUser, loginUser } = require("../controllers/authController");
 
 // SIGNUP with image upload
-// router.post("/signup", uploadProfile.single("profile_image"), signupUser);
+router.post("/signup", uploadProfile.single("profile_image"), signupUser);
 
 // LOGIN
 router.post("/login", loginUser);
