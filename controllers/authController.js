@@ -1,15 +1,10 @@
-// controllers/authController.js
 const pool = require("../config/db");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
-
 // =============================
-// SIGNUP (CREATE USER) - accepts full_name, email, phone, password, role
+// SIGNUP USER
 // =============================
-
-
-
 const signupUser = async (req, res) => {
   try {
     const { full_name, email, phone, password, role } = req.body;
@@ -20,7 +15,6 @@ const signupUser = async (req, res) => {
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    // Check email exists
     const [exists] = await pool.query(
       "SELECT id FROM users WHERE email = ?",
       [normalizedEmail]
@@ -30,15 +24,11 @@ const signupUser = async (req, res) => {
       return res.status(409).json({ message: "Email already registered" });
     }
 
-    // Hash Password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Handle image
-    const profileImgPath = req.file
-      ? `/uploads/profile/${req.file.filename}`
-      : null;
+    let profileImgPath = null;
+    if (req.file) profileImgPath = req.file.path;
 
-    // Create user
     const [result] = await pool.query(
       `INSERT INTO users (full_name, email, phone, password, role, profile_image)
        VALUES (?, ?, ?, ?, ?, ?)`,
@@ -60,8 +50,7 @@ const signupUser = async (req, res) => {
 
 
 // =============================
-// LOGIN USER WITH ROLE CHECK
-// Strict: checks email exists, password matches, role matches
+// LOGIN USER
 // =============================
 const loginUser = async (req, res) => {
   try {
@@ -75,7 +64,6 @@ const loginUser = async (req, res) => {
 
     const normalizedEmail = String(email).trim().toLowerCase();
 
-    // 1) Check user exists
     const [rows] = await pool.query(
       "SELECT * FROM users WHERE email = ? LIMIT 1",
       [normalizedEmail]
@@ -87,29 +75,27 @@ const loginUser = async (req, res) => {
 
     const user = rows[0];
 
-    // 2) Check password
+    // Check password
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
       return res.status(401).json({ message: "Incorrect password" });
     }
 
-    // 3) Check role
+    // Check role
     if (user.role !== role) {
       return res.status(403).json({
         message: "Role does not match account. Choose the correct role.",
       });
     }
 
-    // 4) If all match → generate JWT
+    // Generate JWT
     const payload = {
       id: user.id,
       email: user.email,
       role: user.role,
     };
 
-    const token = jwt.sign(payload, process.env.JWT_SECRET, {
-      expiresIn: "7d",
-    });
+    const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "7d" });
 
     return res.json({
       message: "Login successful",
@@ -120,11 +106,13 @@ const loginUser = async (req, res) => {
         email: user.email,
         role: user.role,
         phone: user.phone,
+        profile_image: user.profile_image
       },
     });
+
   } catch (error) {
     console.error("Login error:", error);
-    return res.status(500).json({ message: "Server error", error: error.message || error });
+    return res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
