@@ -9,8 +9,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+
 // Serve images
-app.use("/uploads", express.static("uploads"));
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // ========================= //
 //          ROUTES           //
@@ -59,4 +60,5 @@ app.get("/", (req, res) => {
 // console.log("JWT SECRET:", process.env.JWT_SECRET);
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running at port ${PORT}`));
+module.exports = app;
+
