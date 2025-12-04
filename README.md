@@ -1,261 +1,214 @@
-# 📘 **CleanPro Admin Panel – Backend (Node.js + Express + MySQL)**
+🚀 CleanPro Admin Backend
 
-This backend powers the CleanPro Admin Portal, providing secure authentication, user management, and dashboard data through REST APIs.
-It follows an MVC structure and uses JWT authentication to secure all admin operations.
+Node.js + Express + MySQL + JWT Authentication
 
----
+📌 Overview
 
-# 🚀 **Overview**
+This backend powers the CleanPro Admin Panel, including:
 
-The backend handles:
+User signup & login
 
-- ✔ JWT-based Authentication
-- ✔ Admin-only access
-- ✔ Users Module (CRUD)
-- ✔ Dashboard statistics API
-- ✔ MySQL database integration
-- ✔ Centralized error handling
-- ✔ Protected routes using middleware
+Role-based authentication
 
-All frontend requests are validated and processed securely before reaching the database.
+Dashboard statistics
 
----
+Manage Users (Admin only)
 
-# 🛠 **Tech Stack**
+Manage Cleaners
 
-- **Node.js**
-- **Express.js**
-- **MySQL**
-- **JWT (jsonwebtoken)**
-- **dotenv**
-- **CORS**
-- **MVC Pattern**
+Manage Partners
 
----
+The backend is fully token-protected and role restricted.
 
-# 📁 **Backend Folder Structure**
-
-```
+📂 Project Structure
 backend/
-│── config/
-│   └── db.js
-│── controllers/
-│   ├── authController.js
-│   └── userController.js
-│── middleware/
-│   └── authMiddleware.js
-│── routes/
-│   ├── authRoutes.js
-│   └── userRoutes.js
-│── server.js
-│── .env
-└── package.json
-```
+│
+├── config/
+│ └── db.js
+│
+├── controllers/
+│ ├── authController.js
+│ └── userController.js
+│
+├── middleware/
+│ ├── authMiddleware.js
+│ └── role.js
+│
+├── routes/
+│ ├── authRoutes.js
+│ ├── dashboardRoutes.js
+│ └── userRoutes.js
+│
+├── server.js
+├── package.json
+└── .env
 
----
+🔐 Authentication Flow
+Signup
+POST /api/auth/signup
 
-# 🔧 **1. Database Setup (MySQL)**
+Creates a user with hashed password.
 
-Create database:
+Login
+POST /api/auth/login
 
-```sql
-CREATE DATABASE cleanpro;
-```
+Returns JWT containing:
 
-Users Table (sample):
+{ id, email, role }
 
-```sql
-CREATE TABLE users (
-  user_id INT PRIMARY KEY AUTO_INCREMENT,
-  first_name VARCHAR(255),
-  last_name VARCHAR(255),
-  email VARCHAR(255) UNIQUE,
-  role VARCHAR(50),
-  profile TEXT,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
+Token Validation
 
-Supported roles:
+authMiddleware verifies JWT for protected routes.
 
-```
-admin, user, partner, cleaner
-```
+🔒 Role-Based Access
 
----
+The backend uses:
 
-# 🔐 **2. Environment Variables**
+allowRoles("admin")
 
-Create a `.env` file in the backend folder:
+Example:
 
-```
-PORT=5000
+router.get("/", auth, allowRoles("admin"), controllerFn);
 
-DB_HOST=localhost
-DB_USER=root
-DB_PASSWORD=****
-DB_NAME=cleanpro
-DB_PORT=3306
+📊 Dashboard API
+GET /api/dashboard
 
-JWT_SECRET=YourSecretKeyHere
-JWT_EXPIRES_IN=7d
-```
+Returned:
 
----
+total_users
+admin_count
+user_count
+partner_count
+cleaner_count
 
-# 🧠 **3. Authentication (JWT-Based)**
+👥 User Management API
+Get all users
+GET /api/users
 
-Admin authentication is based on email-only login.
+Update user
+PUT /api/users
 
-### **Login Flow**
+Delete user
+DELETE /api/users
 
-1️⃣ Frontend sends `{ email }` to `/api/auth/login`
-2️⃣ Backend checks:
+All protected with:
 
-- Email exists
-- User role is **admin** only
-  3️⃣ Backend generates JWT token:
+auth + allowRoles("admin")
 
-```js
-jwt.sign({ user_id, email, role }, process.env.JWT_SECRET, { expiresIn: "7d" });
-```
+🗄 Database
+Users Table
+id (PK)
+full_name
+email (unique)
+phone
+password (hashed)
+role (admin/partner/cleaner/user)
+profile_image (null)
+created_at
 
-4️⃣ Returns token + user details to frontend
-5️⃣ Token is required for all protected APIs
+Everything (dashboard, users, partners, cleaners) is derived from this ONE table.
 
----
+⚙ .env Configuration
+DB_HOST=
+DB_USER=
+DB_PASSWORD=
+DB_DATABASE=
+JWT_SECRET=
 
-# 🛡 **4. JWT Middleware (Route Protection)**
-
-Every protected route goes through:
-
-`backend/middleware/authMiddleware.js`
-
-It:
-
-- Extracts token
-- Verifies token
-- Attaches decoded user info to `req.user`
-- Rejects unauthorized requests
-
-Only admin users can access resources.
-
----
-
-# 🎯 **5. Routes Overview**
-
-## **AUTH Routes**
-
-| Method | Route             | Description                    |
-| ------ | ----------------- | ------------------------------ |
-| POST   | `/api/auth/login` | Login using email (Admin only) |
-
----
-
-## **USERS Routes**
-
-| Method | Route                  | Description            |
-| ------ | ---------------------- | ---------------------- |
-| GET    | `/api/users`           | Get all users          |
-| POST   | `/api/users`           | Create new user        |
-| PUT    | `/api/users`           | Update user by payload |
-| DELETE | `/api/users`           | Delete user by payload |
-| GET    | `/api/users/stats/all` | Dashboard stats        |
-
----
-
-# 🧩 **6. Controllers**
-
-## 🔹 **authController.js**
-
-Handles:
-
-- Validate email
-- Verify admin role
-- Generate JWT token
-- Return user object
-
----
-
-## 🔹 **userController.js**
-
-Responsible for:
-
-- Create user
-- List all users
-- Update user
-- Delete user
-- Return dashboard stats
-
-Uses parameterized queries to prevent SQL injection.
-
----
-
-# ⚙️ **7. Server Entry Point**
-
-`server.js` handles:
-
-- Express initialization
-- CORS setup
-- JSON middleware
-- Route mounting
-- DB connection test
-- Starting the server
-
-Sample output:
-
-```
-Server running at port 5000
-MySQL Connected
-```
-
----
-
-# 🧪 **8. Testing with Postman**
-
-Exported Postman collection contains:
-
-- Auth login
-- User CRUD
-- Stats API
-
-Add token under Authorization → Bearer Token.
-
----
-
-# 🚀 **9. How to Run Backend**
-
-### Install dependencies:
-
-```
-cd backend
+▶ Running Locally
 npm install
-```
+node server.js
 
-### Start server:
+🚢 Deployed On
 
-```
-npm run dev
-```
+Vercel (Serverless Functions)
 
-Backend will run on:
+Secure, fast, and scalable.
 
-```
-http://localhost:5000
-```
+                           ┌──────────────────────────┐
+                           │        FRONTEND          │
+                           │  React + Axios + JWT     │
+                           └────────────┬─────────────┘
+                                        │
+                                        │ (User submits signup/login)
+                                        ▼
+                     ┌────────────────────────────────────────┐
+                     │        /api/auth/signup (POST)          │
+                     │        /api/auth/login  (POST)          │
+                     └───────────────────────┬────────────────┘
+                                             │
+                                             ▼
+                               ┌──────────────────────────┐
+                               │     AUTH ROUTES          │
+                               │  authRoutes.js           │
+                               └────────────┬─────────────┘
+                                             │
+                                             ▼
+                               ┌──────────────────────────┐
+                               │   AUTH CONTROLLER        │
+                               │   signupUser / loginUser │
+                               └────────────┬─────────────┘
+                                             │
+                                             │
+         ┌───────────────────────────────────┼───────────────────────────────────┐
+         │                                   │                                   │
+         ▼                                   ▼                                   ▼
 
----
-
-# 🏁 **10. Features Completed**
-
-- ✔ JWT Authentication
-- ✔ Admin-only access
-- ✔ MySQL integration
-- ✔ Modular MVC structure
-- ✔ Users CRUD
-- ✔ Dashboard stats API
-- ✔ API validation
-- ✔ Postman collection
-
----
-"# CleanPro-Admin-backend" 
+┌────────────────┐ ┌─────────────────────┐ ┌────────────────┐
+│ FRONTEND VALID │ │ BACKEND VALIDATION │ │ PASSWORD HASH │
+│ Email / Phone │ │ Email exists? │ │ bcrypt.hash │
+│ Password rules │ │ Required fields? │ └────────────────┘
+└────────────────┘ │ Normalize email │
+└─────────────────────┘
+│
+▼
+┌────────────────────────────────┐
+│ DATABASE INSERT / SELECT │
+│ users table ONLY │
+└────────────────────────────────┘
+│
+▼
+┌────────────────────────┐
+│ AUTH SUCCESS RESPONSE │
+│ Signup or Login OK │
+└─────────┬──────────────┘
+│
+▼
+┌────────────────────────────────┐
+│ JWT TOKEN GENERATED │
+│ Stored in localStorage │
+└─────────────┬──────────────────┘
+│
+▼
+┌───────────────────────────────────┐
+│ PROTECTED ROUTES VIA JWT │
+│ /api/dashboard │
+│ /api/users │
+└─────────────┬─────────────────────┘
+│
+▼
+┌───────────────────────────────────┐
+│ AUTH MIDDLEWARE (Backend) │
+│ • Verifies JWT │
+│ • Sets req.user │
+└─────────────┬─────────────────────┘
+│
+▼
+┌────────────────────────────────────┐
+│ ROLE MIDDLEWARE (allowRoles) │
+│ Example: allowRoles("admin") │
+│ Deny if role mismatch │
+└─────────────┬─────────────────────┘
+│
+▼
+┌────────────────────────────────────────────┐
+│ USER CONTROLLER (Admin) │
+│ /api/users → list/update/delete │
+│ /api/dashboard → stats │
+└────────────────────────────────────────────┘
+│
+▼
+┌───────────────────────────────────┐
+│ FRONTEND UI │
+│ Dashboard, Manage Users, etc. │
+└───────────────────────────────────┘
