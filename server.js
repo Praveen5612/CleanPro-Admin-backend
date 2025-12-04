@@ -59,6 +59,5 @@ app.get("/", (req, res) => {
 // Show secret for debugging
 // console.log("JWT SECRET:", process.env.JWT_SECRET);
 
-const PORT = process.env.PORT || 5000;
 module.exports = app;
 
