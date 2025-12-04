@@ -1,33 +1,14 @@
 const multer = require("multer");
-const path = require("path");
-const fs = require("fs");
+const { CloudinaryStorage } = require("multer-storage-cloudinary");
+const cloudinary = require("../config/cloudinary");
 
-// Ensure folder exists
-const uploadPath = path.join(__dirname, "../uploads/profile");
-if (!fs.existsSync(uploadPath)) {
-  fs.mkdirSync(uploadPath, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadPath);
-  },
-  filename: function (req, file, cb) {
-    const ext = path.extname(file.originalname);
-    cb(null, Date.now() + ext);
+const storage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: "cleanpro/profiles",
+    allowed_formats: ["jpg", "jpeg", "png"],
+    transformation: [{ width: 500, height: 500, crop: "limit" }],
   },
 });
 
-const fileFilter = (req, file, cb) => {
-  if (file.mimetype.startsWith("image/")) {
-    cb(null, true);
-  } else {
-    cb(new Error("Only images allowed"), false);
-  }
-};
-
-module.exports = multer({
-  storage,
-  fileFilter,
-  limits: { fileSize: 2 * 1024 * 1024 },
-});
+module.exports = multer({ storage });
